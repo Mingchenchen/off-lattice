@@ -38,4 +38,4 @@ To make a ordinary run with the resulting chain printed to stdout:
 To make a large run of the algorithm where the chain is folded several times
 you use the following command:
     
-    $ pfolder -l <number of run> -c <residues> -i <iterations>
+    $ off-lattice -l <number of run> -c <residues> -i <iterations>
