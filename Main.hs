@@ -29,7 +29,7 @@ settings0 = S { iterations = Nothing
               , large = Nothing
               , chain = Nothing
               , help = Nothing
-              , angle = 15
+              , angle = 360
               , attempts = 150
               }
 
@@ -46,7 +46,7 @@ defaultConf = HPConfig { hRadius = r
   where
     r = 0.49
     p = 1
-    a = 90
+    a = 140
 
 
 

@@ -3,7 +3,6 @@
 
 module OffLattice.Chain ( Chain (..)
                         , runChain
-                        , runChain'
                         ) where
 
 
@@ -46,13 +45,15 @@ candidate :: ( PrimMonad m
              , MWC.Variate (Angle c)
              , Num n
              , Fractional n
+             , Fractional (Angle c)
              , Ord n
              ) => MWC.Gen (PrimState m)
                -> Angle c
                -> c
+               -> Int
                -> m (Maybe (M.Candidate c n))
-candidate g a c = do
-  a' <- angle g a
+candidate g a c n = do
+  a' <- angle g a >>= return . (* (2/3)^(fromIntegral n))
   i  <- index g $ indices c
   case move i a' c of
     Nothing -> return Nothing
@@ -63,7 +64,7 @@ score :: ( Chain c
          , n ~ Energy c
          , Floating n
          ) => c -> c -> n -> n
-score a b = expQuota (-energy a) (-energy b)
+score a b = expQuota (energy a) (energy b)
      
 
 
@@ -73,28 +74,12 @@ type CandidateF m c n = Angle c -> c -> m (Maybe (M.Candidate c n))
 
 type Temperature n = n
 
-runChain' :: ( PrimMonad m
-             , Chain c
-             , Additive (Angle c)
-             , MWC.Variate (Angle c)
-             , Ord n
-             , Num n
-             , Fractional n
-             ) => MWC.Gen (PrimState m)
-               -> Int 
-               -> Angle c
-               -> ScoreF c t n
-               -> CandidateF m c n
-               -> c
-               -> [Temperature t]
-               -> m (M.Result c)
-runChain' g atmpts angl scr c = M.metropolisHastings g atmpts scr (c angl)
-
 
 runChain :: ( PrimMonad m
             , Chain c
             , Additive (Angle c)
             , MWC.Variate (Angle c)
+            , Fractional (Angle c)
             , Ord t
             , Num t
             , Fractional t

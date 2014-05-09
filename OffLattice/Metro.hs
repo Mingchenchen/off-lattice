@@ -20,7 +20,7 @@ type ScoreFunc s p n = s -> s -> p -> n
 
 --  A function that generates a new random candidate
 -- given the current state of a Markov chain.
-type CandFunc s m n = s -> m (Maybe (Candidate s n))
+type CandFunc s m n = s -> Int -> m (Maybe (Candidate s n))
 
 -- A structure containing the candidate state, the
 -- probability of getting this state given the previous
@@ -29,7 +29,7 @@ type CandFunc s m n = s -> m (Maybe (Candidate s n))
 data Candidate s n = Candidate { candidate :: s
                                , pthere :: n
                                , pback :: n
-                               }
+                              }
 
 data Result a = Finished Stats a | GotStuckAt Stats a
   deriving (Show, Read, Eq)
@@ -70,7 +70,7 @@ metropolisHastings g atmpts scoref candf state ts = foldM step (state, stats0, F
 
     try 0 (state, stats) | s' <- attempt stats = return (Nothing, s')
     try n (state, stats) | s' <- attempt stats = do
-      c <- candf state
+      c <- candf state (atmpts - n + 1)
       case c of
         (Just s) -> return (Just s, s')
         Nothing  -> try (n-1) (state, s')

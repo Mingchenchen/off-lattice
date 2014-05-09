@@ -168,7 +168,7 @@ rotChain i a (HPChain ps rs bs is hpc) | i >= V.length is
     t  = T.rotAboutG p b a    :: Transform n
     r  = T.rot3 b a    :: Matrix n
 
-
+{-
 updateChain :: forall n.
                ( Ord n
                , Additive n
@@ -181,6 +181,31 @@ updateChain i a c | valid     = Just c'
   where
     valid = validShapes s
 
+    c'  = rotChain i a c
+    rs  = residues c'
+    ps  = positions c
+    ps' = positions c'
+
+    hpc = config c
+
+    s = VG.izipWith f ps (positions c')
+   
+    f i a b = let r = radius (rs V.! i) hpc
+              in if r /= 0 then S.capsule i r a b else error "radius is 0!"
+-}
+updateChain :: forall n.
+               ( Ord n
+               , Additive n
+               , Multiplicative n
+               , Floating n
+               , Epsilon n
+               ) => Int -> Angle n -> HPChain n -> Maybe (HPChain n)
+updateChain i a c | valid     = Just c'
+                  | otherwise = Nothing
+  where
+    valid = validShapes2 s (j+1)
+
+    (j,_,_) = bonds c V.! i
     c'  = rotChain i a c
     rs  = residues c'
     ps  = positions c
@@ -206,6 +231,24 @@ validShapes s = MT.oall intersects overlaps
     intervals = F.map (V.modify VSORT.sort) $ G.intervals s
     overlaps  = HS.filter (\(i,j) -> abs (i-j) > 1) $ G.overlappings intervals
     intersects (i,j) = maybe True (const False) $ G.intersects (s V.! i) (s V.! j)
+
+
+validShapes2 :: forall n.
+               ( Ord n
+               , Additive n
+               , Multiplicative n
+               , Epsilon n
+               , Floating n
+               ) => V.Vector (S.Shape Id (Vec n)) -> Int -> Bool
+validShapes2 s i = MT.oall intersects overlaps
+  where
+    (a,b) = V.splitAt i s
+    is, js :: Vec (V.Vector (G.Point n Id))
+    is = F.map (V.modify VSORT.sort) $ G.intervals a
+    js = F.map (V.modify VSORT.sort) $ G.intervals b
+    overlaps  = HS.filter (\(i,j) -> abs (i-j) > 1) $ G.overlappings2 is js
+    intersects (i,j) = maybe True (const False) $ G.intersects (s V.! i) (s V.! j)
+
 
 energy :: forall n.
           ( Ord n

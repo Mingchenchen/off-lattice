@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts, TypeFamilies, TemplateHaskell,
-    MultiParamTypeClasses, RankNTypes, ScopedTypeVariables #-}
+    MultiParamTypeClasses, RankNTypes, ScopedTypeVariables,
+    ViewPatterns #-}
     
 
 module OffLattice.Geo ( Id (..)
@@ -8,7 +9,9 @@ module OffLattice.Geo ( Id (..)
                        , interval
                        , intervals
                        , overlaps
+                       , overlaps2
                        , overlappings
+                       , overlappings2
                        , Point
                        ) where
 
@@ -162,6 +165,17 @@ overlappings xs = foldr (HS.intersection . overlaps) x xs'
     xs' :: ContVec n f
     xs' = tail xs
 
+-- Assumes that the points are sorted in ascending order
+overlappings2 :: forall n v p i w.
+                ( Hashable i, Ord i, Ord p, Arity n
+                , G.Vector w (Point p i)
+                , Vector v (w (Point p i)), F.Dim v ~ S n
+                ) => v (w (Point p i)) -> v (w (Point p i)) -> HashSet (i,i)
+overlappings2 xs ys = F.foldl1 HS.intersection zs
+  where
+    zs :: ContVec (S n) (HashSet (i,i))
+    zs = zipWithG overlaps2 xs ys
+
 
 -- Assumes that the points are sorted in ascending order.
 overlaps :: forall p i f.
@@ -174,37 +188,43 @@ overlaps = snd . ofoldl' (flip f) (HS.empty, HS.empty)
     f (Open  p i) (is, r) = (HS.insert i is, HS.foldr (HS.insert . g i) r is)
     f (Close p i) (is, r) = (HS.delete i is, r) -- insert/delete is ~O(1)
     g i j = if i < j then (i,j) else (j,i)
-{-
-overlaps2 :: forall p i f.
+
+overlaps2 :: forall p i v.
              ( Hashable i, Ord i, Ord p
-             , MonoFoldable f
-             , Element f ~ (Point p i)
-             ) => f -> f -> HashSet (i,i)
-overlaps2 = 
---f xs ys is js cs
-  f [] _  is _  cs | HS.null is = cs
-  f _  [] _  js cs | HS.null js = cs
-  f (x:xs) (y:ys) is js cs
-    | x == y
-    , op x   = f xs (y:ys) (ins x is) js (add x js cs)
-    | x == y
-    , op y   = f (x:xs) ys is (ins y js) (add y is cs)
-    | x < y  
-    , op x   = f xs (y:ys)
-    | x < y  =
-    | x >= y
-    , op y   =
-    | x >= y =
+             , G.Vector v (Point p i)
+             ) => v (Point p i) -> v (Point p i) -> HashSet (i,i)
+overlaps2 xs ys = f 0 0 HS.empty HS.empty HS.empty
   where
+    f xi _ is _ cs | HS.null is && xi >= G.length xs = cs
+    f _ yi _ js cs | HS.null js && yi >= G.length ys = cs
+    f xi yi is js cs
+      | xp == yp
+      , op x     = f (xi+1) yi (ins x is) js (add x js cs)
+      | xp == yp
+      , op y     = f xi (yi+1) is (ins y js) (add y is cs)
+      | xp <  yp
+      , op x     = f (xi+1) yi (ins x is) js (add x js cs)
+      | xp <  yp = f (xi+1) yi (del x is) js cs
+      | xp >= yp
+      , op y     = f xi (yi+1) is (ins y js) (add y is cs)
+      | xp >= yp = f xi (yi+1) is (del y js) cs
+      where
+        xp = valP x
+        yp = valP y
+        x  = xs G.! xi
+        y  = ys G.! yi
+
     op (Open _ _) = True
-    op _          = Close
+    op _          = False
 
-    fo
--}
+    ins, del :: Point p i -> HashSet i -> HashSet i
+    ins = HS.insert . idP
+    del = HS.delete . idP
 
-
-
-
+    add :: Point p i -> HashSet i -> HashSet (i,i) -> HashSet (i,i)
+    add (idP -> x) js cs = HS.foldr (HS.insert . or x) cs js
+    or a b | a < b     = (a, b)
+           | otherwise = (b, a) 
 
 
 
