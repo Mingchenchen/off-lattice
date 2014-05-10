@@ -149,8 +149,7 @@ rotChain :: forall n.
             , Epsilon n
             ) => Index -> Angle n -> HPChain n -> HPChain n
 rotChain _ a hpc | a ~= 0 = hpc
-rotChain i a (HPChain ps rs bs is hpc) | i >= V.length is
-                                       , i < 0 = error "Index out of bounds"
+rotChain i a (HPChain ps rs bs is hpc) | i >= V.length is || i < 0 = error "Index out of bounds"
                                        | otherwise = HPChain ps' rs bs' is hpc
   where
     (j,p,b) = bs V.! i
@@ -158,9 +157,6 @@ rotChain i a (HPChain ps rs bs is hpc) | i >= V.length is
     ps' = V.imap g ps
     lng = V.length bs `div` 2 < i || True
 
-    --f j (k, p, b) | j <= i = (k, p, b)
-    --              | j >  i = (k, T.vtmulG p t, M.vmmulG b r)
-                
     f j (k, p, b) | j <= i = (k, p, b)
                   | j >  i = (k, T.vtmulG p t, M.vmmulG b r)
     
