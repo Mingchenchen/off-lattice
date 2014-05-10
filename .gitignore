@@ -1,7 +1,5 @@
 dist
 cabal-dev
-output/
-*.csv
 *.o
 *.hi
 *.chi
