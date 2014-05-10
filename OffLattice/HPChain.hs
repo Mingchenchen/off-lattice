@@ -204,7 +204,7 @@ updateChain :: forall n.
 updateChain i a c | valid     = Just c'
                   | otherwise = Nothing
   where
-    valid = validShapes2 s (j+1)
+    valid = validShapes2 s j
 
     (j,_,_) = bonds c V.! i
     c'  = rotChain i a c
