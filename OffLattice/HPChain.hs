@@ -158,15 +158,20 @@ rotChain i a (HPChain ps rs bs is hpc) | i >= V.length is
     ps' = V.imap g ps
     lng = V.length bs `div` 2 < i || True
 
+    --f j (k, p, b) | j <= i = (k, p, b)
+    --              | j >  i = (k, T.vtmulG p t, M.vmmulG b r)
+                
     f j (k, p, b) | j <= i = (k, p, b)
                   | j >  i = (k, T.vtmulG p t, M.vmmulG b r)
-                
-    g i r | i <= j = r
-          | i >  j = T.vtmulG r t
+    
+    --g i r | i <= j  = r
+    --      | i >  j  = T.vtmulG r t
 
+    g i r | i <= j + 1 = r
+          | i >  j + 1 = T.vtmulG r t
 
     t  = T.rotAboutG p b a    :: Transform n
-    r  = T.rot3 b a    :: Matrix n
+    r  = T.rot3 b a           :: Matrix n
 
 {-
 updateChain :: forall n.
@@ -281,7 +286,6 @@ energy ch = MT.ofoldr ((+) . enrgy) 0 overlaps
     enrgy (i,j) = let d = dist (ps V.! i) (ps V.! j)
                       e = if d >= rng then (0,0) else pot i j d
                   in fst e
-    g d rng e = "\nd: " ++ show d ++ "\nrng: " ++ show rng ++ "\ne: " ++ show e ++ "\n"
 
     pot i j d = let e H' H' = hh
                     e H' P' = hp

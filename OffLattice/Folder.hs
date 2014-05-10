@@ -21,6 +21,14 @@ import System.Random.MWC
 
 import qualified Data.List as L
 
+import Data.Time
+import Data.Time.Format
+import System.Locale
+
+getPath :: IO String
+getPath = getZonedTime >>= return . formatTime defaultTimeLocale "output/%Y-%m-%d %H:%M:%S/"
+
+{-
 runNormal :: ( Additive n
              , Multiplicative n
              , Floating n
@@ -32,14 +40,18 @@ runNormal :: ( Additive n
 runNormal atmpts its angle hps conf = do
   g <- createSystemRandom
   let hpc = mkHPChain hps conf
-  createDirectoryIfMissing True "output"
-  writeFile "output/initialChain.csv" $ showChain hpc ++ "\n" ++ toHPN hps
-  writeFile "output/initialEnergy.csv" $ show (HPChain.energy hpc)
+
+  path <- getPath
+
+  createDirectoryIfMissing True folderName
+  writeFile (path ++ "initialChain.csv") $ showChain hpc ++ "\n" ++ toHPN hps
+  writeFile (path ++ "output/initialEnergy.csv") $ show (HPChain.energy hpc)
   r <- runChain g atmpts angle hpc (generateTemps its )
+  writeFile (path ++ "energies.csv") $ (
   putStrLn $ "Stats:\n\t" ++ (show $ rStats r)
   putStrLn $ "Energy before: " ++ (show $ HPChain.energy $ hpc)
   putStrLn $ "Energy after:  " ++ (show $ HPChain.energy $ rState r)
-
+-}
 
 
 runLarge :: forall n.
@@ -54,20 +66,22 @@ runLarge :: forall n.
 runLarge n atmpts its angle hps conf = do
   g <- createSystemRandom
   let hpc = mkHPChain hps conf
+  path <- getPath
 
-  createDirectoryIfMissing True "output/chains"
-  createDirectoryIfMissing True "output/hpchains"
-  energyHandle <- openFile "output/energies.csv" WriteMode
-  statsHandle  <- openFile "output/stats.csv" WriteMode
-  writeFile "output/residues.csv" (concatMap show hps)
-  writeFile "output/iterations" $ show its
-  writeFile "output/config" $ show conf
-  writeFile "output/initialChain.csv" $ showChain hpc ++ "\n" ++ toHPN hps
-  writeFile "output/initialEnergy.csv" $ (show $ HPChain.energy hpc)
+  createDirectoryIfMissing True path
+  createDirectoryIfMissing True (path ++ "chains")
+  createDirectoryIfMissing True (path ++ "hpchains")
+  energyHandle <- openFile (path ++ "energies.csv") WriteMode
+  statsHandle  <- openFile (path ++ "stats.csv") WriteMode
+  writeFile (path ++ "residues.csv") (concatMap show hps)
+  writeFile (path ++ "iterations") $ show its
+  writeFile (path ++ "config") $ show conf
+  writeFile (path ++ "initialChain.csv") $ showChain hpc ++ "\n" ++ toHPN hps
+  writeFile (path ++ "initialEnergy.csv") $ (show $ HPChain.energy hpc)
 
   let writeOut i res = do {
-    writeFile ("output/chains/chain-" ++ show i ++ ".csv") (showResult res) ;
-    writeFile ("output/hpchains/chain-" ++ show i ++ ".csv") (showResult res ++ toHPN hps) ;
+    writeFile (path ++ "chains/chain-" ++ show i ++ ".csv") (showResult res) ;
+    writeFile (path ++ "hpchains/chain-" ++ show i ++ ".csv") (showResult res ++ toHPN hps) ;
     hPutStrLn energyHandle (show $ HPChain.energy $ rState res) ;
     hPutStrLn statsHandle (showStats $ rStats $ res) ;
     putStrLn $ "Finished number " ++ show i ++ " of " ++ show n ;

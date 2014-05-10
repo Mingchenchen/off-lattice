@@ -9,7 +9,7 @@ import LA
 import OffLattice.HPChain as HPChain
 import OffLattice.Folder as Folder
 
-import Data.Char (toLower)
+import Data.Char (toLower, isDigit)
 import Data.Maybe (isNothing)
 
 
@@ -18,7 +18,7 @@ import System.Random.MWC
 type N = Double
 
 data Settings = S { iterations :: Maybe Int
-                  , large      :: Maybe Int
+                  , large      :: Int
                   , chain      :: Maybe [HP]
                   , help       :: Maybe Bool
                   , angle      :: N
@@ -26,7 +26,7 @@ data Settings = S { iterations :: Maybe Int
                   } deriving (Show, Read, Eq)
                   
 settings0 = S { iterations = Nothing
-              , large = Nothing
+              , large = 1
               , chain = Nothing
               , help = Nothing
               , angle = 360
@@ -80,10 +80,17 @@ main = do
     let (Just it) = iterations s
     let at = attempts s
     let c' = c { bondAngle = (bondAngle c) / 180 * pi }
-    case large s of
-      (Just n) -> runLarge n at it an ch c'
-      Nothing  -> runNormal  at it an ch c'
-  
+    let l = large s
+    case l <= 0 of
+      True  -> do
+                 putStrLn "You must set 'large' to a value >= 1"
+                 exitFailure
+      False -> runLarge l at it an ch c'
+
+f []  = []
+f [x] = [x]
+f (x:y:xs) | isDigit x = replicate (read [x] :: Int) y ++ f xs
+               | otherwise = x : f (y:xs)
 
 
 parse (s,c) [] = (s,c)
@@ -102,8 +109,8 @@ parseChain (x:xs) = case toLower x of
                       _   -> error "Could not parse chain" 
 
 dict = [ ("-i" , \(s, c) y -> (s { iterations = Just (read y :: Int) }, c))
-       , ("-c" , \(s, c) y -> (s { chain      = Just (parseChain y)  }, c))
-       , ("-l" , \(s, c) y -> (s { large      = Just (read y :: Int) }, c))
+       , ("-c" , \(s, c) y -> (s { chain      = Just (parseChain $ f $ y)  }, c))
+       , ("-l" , \(s, c) y -> (s { large      = (read y :: Int) }, c))
        , ("-a" , \(s, c) y -> (s { angle      = (read y :: N)   }, c))
        , ("-at", \(s, c) y -> (s { attempts   = (read y :: Int) }, c))
        , ("-b" , \(s, c) y -> (s, c { bondAngle   = (read y :: N) }))
@@ -120,7 +127,8 @@ printHelp = do
     putStrLn $ "Flags:"
     putStrLn $ "  -h                          show this info"
     putStrLn $ "* -i <iterations>             set the number of iterations"  
-    putStrLn $ "  -l <number of runs>         fold the chain multiple times"
+    putStrLn $ "  -l <number of runs>         fold the chain multiple times,"
+    putStrLn $ "                                default value = " ++ (show $ large settings0)
     putStrLn $ "* -c <chain>                  set the hp-chain"
     putStrLn $ "  -a <angle>                  set the step anglel,"
     putStrLn $ "                                default value = " ++ (show $ angle settings0)
