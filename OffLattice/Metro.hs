@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns, RankNTypes, ScopedTypeVariables #-}
 
 module OffLattice.Metro ( Candidate (..)
                         , metropolisHastings
@@ -63,20 +63,20 @@ metropolisHastings :: forall m n p s.
                         -> s
                         -> [p]
                         -> m (Result s)
-metropolisHastings g atmpts scoref candf state ts = foldM step (state, stats0, False) ts >>= f
+metropolisHastings g atmpts scoref candf !state !ts = foldM step (state, stats0, False) ts >>= f
   where
     f (state, stats, True)  = return $ GotStuckAt stats state
     f (state, stats, False) = return $ Finished stats state
 
-    try 0 (state, stats) | s' <- attempt stats = return (Nothing, s')
-    try n (state, stats) | s' <- attempt stats = do
+    try 0 (!state, !stats) | s' <- attempt stats = return (Nothing, s')
+    try n (!state, !stats) | s' <- attempt stats = do
       c <- candf state (atmpts - n + 1)
       case c of
         (Just s) -> return (Just s, s')
         Nothing  -> try (n-1) (state, s')
 
     step :: (s, Stats, Bool) -> p -> m (s, Stats, Bool)
-    step (state, stats, stck) t = do
+    step (!state, !stats, !stck) t = do
       (cand, stats') <- try atmpts (state, stats)
       case cand of 
         Nothing -> return (state, stats', True) ;
