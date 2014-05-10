@@ -77,12 +77,12 @@ metropolisHastings g atmpts scoref candf !state !ts = foldM step (state, stats0,
 
     step :: (s, Stats, Bool) -> p -> m (s, Stats, Bool)
     step (!state, !stats, !stck) t = do
-      (cand, stats') <- try atmpts (state, stats)
+      (!cand, !stats') <- try atmpts (state, stats)
       case cand of 
         Nothing -> return (state, stats', True) ;
-        (Just c) -> let candState    = candidate c 
+        (Just c) -> let !candState    = candidate c 
                         (there,back) = (pthere c, pback c) 
-                        score        = scoref candState state t
+                        !score        = scoref candState state t
                         a            = min 1.0 back/there * score
                     in if a >= 1
                          then return (candState, stats', stck)
