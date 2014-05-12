@@ -44,7 +44,7 @@ defaultConf = HPConfig { hRadius = r
   where
     r = 0.49
     p = 1
-    a = 140
+    a = 120
 
 
 
