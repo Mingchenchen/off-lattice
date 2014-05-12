@@ -22,15 +22,13 @@ data Settings = S { iterations :: Maybe Int
                   , chain      :: Maybe [HP]
                   , help       :: Maybe Bool
                   , angle      :: N
-                  , attempts   :: Int
                   } deriving (Show, Read, Eq)
                   
 settings0 = S { iterations = Nothing
               , large = 1
               , chain = Nothing
               , help = Nothing
-              , angle = 360
-              , attempts = 150
+              , angle = 20
               }
 
 defaultConf :: HPConfig N
@@ -78,14 +76,13 @@ main = do
     let (Just ch) = chain s
     let an = (angle s)/180 * pi
     let (Just it) = iterations s
-    let at = attempts s
     let c' = c { bondAngle = (bondAngle c) / 180 * pi }
     let l = large s
     case l <= 0 of
       True  -> do
                  putStrLn "You must set 'large' to a value >= 1"
                  exitFailure
-      False -> runLarge l at it an ch c'
+      False -> runLarge l it an ch c'
 
 f []  = []
 f [x] = [x]
@@ -112,7 +109,6 @@ dict = [ ("-i" , \(s, c) y -> (s { iterations = Just (read y :: Int) }, c))
        , ("-c" , \(s, c) y -> (s { chain      = Just (parseChain $ f $ y)  }, c))
        , ("-l" , \(s, c) y -> (s { large      = (read y :: Int) }, c))
        , ("-a" , \(s, c) y -> (s { angle      = (read y :: N)   }, c))
-       , ("-at", \(s, c) y -> (s { attempts   = (read y :: Int) }, c))
        , ("-b" , \(s, c) y -> (s, c { bondAngle   = (read y :: N) }))
        , ("-d" , \(s, c) y -> (s, c { hpRange     = (read y :: N) }))
        , ("-pp", \(s, c) y -> (s, c { ppPotential = (read y :: N) }))
@@ -132,8 +128,6 @@ printHelp = do
     putStrLn $ "* -c <chain>                  set the hp-chain"
     putStrLn $ "  -a <angle>                  set the step anglel,"
     putStrLn $ "                                default value = " ++ (show $ angle settings0)
-    putStrLn $ "  -at <attempts>               set the number of attempts,"
-    putStrLn $ "                                default value = " ++ (show $ attempts settings0)
     putStrLn $ "  -b <angle>                  set the bond angle,"
     putStrLn $ "                                default value = " ++ (show $ bondAngle defaultConf)
     putStrLn $ "  -pp <potential>             set the potential of P-P interaction,"

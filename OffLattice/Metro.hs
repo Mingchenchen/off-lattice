@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, RankNTypes, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns, TupleSections, RankNTypes, ScopedTypeVariables #-}
 
 module OffLattice.Metro ( Candidate (..)
                         , metropolisHastings
@@ -20,7 +20,7 @@ type ScoreFunc s p n = s -> s -> p -> n
 
 --  A function that generates a new random candidate
 -- given the current state of a Markov chain.
-type CandFunc s m n = s -> Int -> m (Maybe (Candidate s n))
+type CandFunc s m n = s -> m (Maybe (Candidate s n))
 
 -- A structure containing the candidate state, the
 -- probability of getting this state given the previous
@@ -56,35 +56,74 @@ metropolisHastings :: forall m n p s.
                       , Num n
                       , Fractional n
                       ) => Gen (PrimState m)
-                        -> Int -- The number of attempts required for the chain
-                               -- to be considered stuck.
                         -> ScoreFunc s p n
                         -> CandFunc s m n
                         -> s
                         -> [p]
                         -> m (Result s)
-metropolisHastings g atmpts scoref candf !state !ts = foldM step (state, stats0, False) ts >>= f
+metropolisHastings g !scoref !candf !state !ts = foldM step (state, stats0, False) ts >>= f
   where
-    f (state, stats, True)  = return $ GotStuckAt stats state
-    f (state, stats, False) = return $ Finished stats state
-
-    try 0 (!state, !stats) | s' <- attempt stats = return (Nothing, s')
-    try n (!state, !stats) | s' <- attempt stats = do
-      c <- candf state (atmpts - n + 1)
-      case c of
-        (Just s) -> return (Just s, s')
-        Nothing  -> try (n-1) (state, s')
-
+    f (!state, !stats, True)  = return $ GotStuckAt stats state
+    f (!state, !stats, False) = return $ Finished stats state
+ 
     step :: (s, Stats, Bool) -> p -> m (s, Stats, Bool)
-    step (!state, !stats, !stck) !t = do
-      (!cand, !stats') <- try atmpts (state, stats)
+    step (!state, stats', !stck) !t = do
+      --cand <- try atmpts state Nothing
+      !cand <- candf state
       case cand of 
         Nothing -> return (state, stats', True) ;
-        (Just !c) -> let !candState   = candidate c 
-                         (there,back) = (pthere c, pback c) 
-                         !score       = scoref candState state t
-                         a            = min 1.0 back/there * score
+        (Just c) -> let !candState    = candidate c 
+                        (there,back) = (pthere c, pback c) 
+                        score        = scoref candState state t
+                        a            = min 1.0 back/there * score
                     in if a >= 1
                          then return (candState, stats', stck)
                          else return (state, reject stats', stck)
+
+
+
+
+
+foldM' :: (Monad m) => (a -> b -> m a) -> a -> [b] -> m a
+foldM' _ z [] = return z
+foldM' f z (x:xs) = do
+      z' <- f z x
+      z' `seq` foldM' f z' xs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

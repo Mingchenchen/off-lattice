@@ -1,0 +1,13 @@
+
+
+
+Kompilera med "ghc Main -O2 -fexcess-precision -optc-O3 -optc-ffast-math -fforce-recomp"
+
+Programmet ser annorlunda ut nu, så jag föreslår att du kör 50000 iterationer.
+
+T.ex: "./Main -i 50000 -c 4h4p8h4h6p8h4h3p8h4h3p8h4h3phpphhpphhpphp -l 100"
+
+
+
+
+

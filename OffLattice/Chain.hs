@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, FlexibleContexts #-}
+{-# LANGUAGE BangPatterns, TypeFamilies, FlexibleContexts #-}
 
 
 module OffLattice.Chain ( Chain (..)
@@ -15,6 +15,7 @@ import qualified Data.Vector as V
 
 -- mwc-random stuff
 import qualified System.Random.MWC as MWC
+import Control.Monad
 import Control.Monad.Primitive (PrimMonad, PrimState)
 
 
@@ -38,7 +39,7 @@ angle :: ( PrimMonad m
          , MWC.Variate a
          ) => MWC.Gen (PrimState m) -> a -> m a
 angle g a = MWC.uniformR (a, neg a) g
-
+{-
 candidate :: ( PrimMonad m
              , Chain c
              , Additive (Angle c)
@@ -58,13 +59,59 @@ candidate g a c n = do
   case move i a' c of
     Nothing -> return Nothing
     (Just x) -> return $ Just $ M.Candidate x 1 1
+-}
+{-
+candidate :: ( PrimMonad m
+             , Chain c
+             , Additive (Angle c)
+             , MWC.Variate (Angle c)
+             , Num n
+             , Fractional n
+             , Fractional (Angle c)
+             , Ord n
+             ) => MWC.Gen (PrimState m)
+               -> Angle c
+               -> Int
+               -> c
+               -> m (Maybe (M.Candidate c n))
+candidate g a atmpts c = do
+  as <- mapM (\n -> angle g a >>= return . (* (2/3)^(fromIntegral n))) [1..atmpts]
+  is <- replicateM atmpts (index g $ indices c)
+  let r = firstJust $ zipWith (\i a -> move i a c) is as
+  case r of
+    Nothing -> return Nothing
+    (Just x) -> return $ Just $ M.Candidate x 1 1
+  where
+    firstJust [] = Nothing
+    firstJust (x@(Just _):xs) = x
+    firstJust (_:(!xs)) = firstJust xs
+-}
 
+candidate :: ( PrimMonad m
+             , Chain c
+             , Additive (Angle c)
+             , MWC.Variate (Angle c)
+             , Num n
+             , Fractional n
+             , Fractional (Angle c)
+             , Ord n
+             ) => MWC.Gen (PrimState m)
+               -> Angle c
+               -> c
+               -> m (Maybe (M.Candidate c n))
+candidate g !a !c = do
+  !a' <- angle g a
+  !i <- index g $ indices c
+  let !r = move i a' c
+  case r of
+    Nothing  -> return Nothing
+    (Just !x) -> return $ Just $ M.Candidate x 1 1
 
 score :: ( Chain c
          , n ~ Energy c
          , Floating n
          ) => c -> c -> n -> n
-score a b = expQuota (energy a) (energy b)
+score !a !b = expQuota (energy a) (energy b)
      
 
 
@@ -86,12 +133,11 @@ runChain :: ( PrimMonad m
             , Floating t
             , Energy c ~ t
             ) => MWC.Gen (PrimState m)
-              -> Int 
               -> Angle c
               -> c
               -> [Temperature t]
               -> m (M.Result c)
-runChain g atmpts angl = M.metropolisHastings g atmpts score (candidate g angl)
+runChain g angl !c t = M.metropolisHastings g score (candidate g angl) c t
 
 
 

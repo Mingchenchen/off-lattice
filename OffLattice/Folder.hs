@@ -62,8 +62,8 @@ runLarge :: forall n.
             , Epsilon n
             , Ord n
             , Show n
-            ) => Int -> Int -> Int -> n -> [HP] -> HPConfig n -> IO ()
-runLarge n atmpts its angle hps conf = do
+            ) => Int -> Int -> n -> [HP] -> HPConfig n -> IO ()
+runLarge n its angle hps conf = do
   g <- createSystemRandom
   let hpc = mkHPChain hps conf
   path <- getPath
@@ -84,11 +84,13 @@ runLarge n atmpts its angle hps conf = do
     writeFile (path ++ "hpchains/chain-" ++ show i ++ ".csv") (showResult res ++ toHPN hps) ;
     hPutStrLn energyHandle (show $ HPChain.energy $ rState res) ;
     hPutStrLn statsHandle (showStats $ rStats $ res) ;
+    hFlush energyHandle ;
+    hFlush statsHandle ;
     putStrLn $ "Finished number " ++ show i ++ " of " ++ show n ;
   }
 
   let runfunc i = do
-                    r <- runChain g atmpts angle hpc (generateTemps $ its)
+                    r <- runChain g angle hpc (generateTemps $ its)
                     writeOut i r
 
   forM_ [1..n] runfunc

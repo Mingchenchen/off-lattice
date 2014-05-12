@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts, TypeFamilies, TemplateHaskell,
     MultiParamTypeClasses, RankNTypes, ScopedTypeVariables,
-    ViewPatterns #-}
+    ViewPatterns, BangPatterns #-}
     
 
 module OffLattice.Geo ( Id (..)
@@ -56,15 +56,15 @@ class Intersectable a where
 
 -- Point
 ------------------------------------------------------------------------
-data Point p i = Open p i | Close p i
+data Point p i = Open !p !i | Close !p !i
   deriving (Show, Read)
 
 -- Unboxed instance stuff
-pointToUTriple (Open  a i) = (a,i,True)
-pointToUTriple (Close a i) = (a,i,False)
+pointToUTriple (Open  !a !i) = (a,i,True)
+pointToUTriple (Close !a !i) = (a,i,False)
 
-uTripleToPoint (a,i,True)  = Open a i
-uTripleToPoint (a,i,False) = Close a i
+uTripleToPoint (!a,!i,!True)  = Open a i
+uTripleToPoint (!a,!i,!False) = Close a i
 
 derivingUnbox "Point"
   [t| (Unbox a, Unbox i) => Point a i -> (a,i,Bool) |]
@@ -73,20 +73,20 @@ derivingUnbox "Point"
 
 
 valP :: Point p i -> p
-valP (Open  x _) = x
-valP (Close x _) = x
+valP (Open  !x _) = x
+valP (Close !x _) = x
 
 idP :: Point p i -> i
-idP (Open  _ x) = x
-idP (Close _ x) = x
+idP (Open  _ !x) = x
+idP (Close _ !x) = x
 
 instance Eq i  => Eq (Point p i) where
-  (==) a b = idP a == idP b
+  (==) !a !b = idP a == idP b
 
 instance (Ord p, Eq i) => Ord (Point p i) where
-  compare a b = case compare (valP a) (valP b) of
-                  EQ -> if o a then GT else LT
-                  x  -> x
+  compare !a !b = case compare (valP a) (valP b) of
+                    EQ -> if o a then GT else LT
+                    x  -> x
     where
       o (Open _ _) = True
       o _          = False
@@ -113,10 +113,10 @@ interval a b i | a < b  = Interval (Open a i, Close b i)
 -}            
 
 interval :: Ord p => p -> p -> i -> Interval p i
-interval a b i = case compare a b of
-                   LT -> Interval (Open a i, Close b i)
-                   GT -> Interval (Open b i, Close b i)
-                   EQ -> Interval (Open a i, Close b i)
+interval !a !b !i = case compare a b of
+                      LT -> Interval (Open a i, Close b i)
+                      GT -> Interval (Open b i, Close b i)
+                      EQ -> Interval (Open a i, Close b i)
               
 
 
@@ -140,17 +140,17 @@ intervals :: forall n a v w p i.
              , G.Vector w a
              , Vector v (w (Point p i))
              ) => w a -> v (w (Point p i))
-intervals xs = vector $ generate (G.generate (2*n) . f)
+intervals !xs = let !r = vector $ generate (G.generate (2*n) . f) in r
   where
-    n = G.length xs
+    !n = G.length xs
 
     f :: Int -> Int -> Point p i
-    f i j | even j
-          , k <- j `div` 2 = fst $ points $ (g k) ! i
-          | k <- j `div` 2 = snd $ points $ (g k) ! i
+    f !i !j | even j
+            , k <- j `div` 2 = fst $ points $ (g k) ! i
+            | k <- j `div` 2 = snd $ points $ (g k) ! i
 
     g :: Int -> ContVec n (Interval p i)
-    g i = aabb $ xs G.! i
+    g !i = aabb $ xs G.! i
 
 -- Assumes that the points are sorted in ascending order
 overlappings :: forall n v p i f.
@@ -159,11 +159,11 @@ overlappings :: forall n v p i f.
                , Element f ~ (Point p i)
                , Vector v f, F.Dim v ~ S n
                ) => v f -> HashSet (i,i)
-overlappings xs = foldr (HS.intersection . overlaps) x xs'
+overlappings !xs = let r = foldr (HS.intersection . overlaps) x xs' in r
   where
-    x = (overlaps $ head xs)
+    !x = (overlaps $ head xs)
     xs' :: ContVec n f
-    xs' = tail xs
+    !xs' = tail xs
 
 -- Assumes that the points are sorted in ascending order
 overlappings2 :: forall n v p i w.
@@ -171,10 +171,10 @@ overlappings2 :: forall n v p i w.
                 , G.Vector w (Point p i)
                 , Vector v (w (Point p i)), F.Dim v ~ S n
                 ) => v (w (Point p i)) -> v (w (Point p i)) -> HashSet (i,i)
-overlappings2 xs ys = F.foldl1 HS.intersection zs
+overlappings2 !xs !ys = let !r = F.foldl1 HS.intersection zs in r
   where
     zs :: ContVec (S n) (HashSet (i,i))
-    zs = zipWithG overlaps2 xs ys
+    !zs = zipWithG overlaps2 xs ys
 
 
 -- Assumes that the points are sorted in ascending order.
@@ -183,21 +183,21 @@ overlaps :: forall p i f.
             , MonoFoldable f
             , Element f ~ (Point p i)
             ) => f -> HashSet (i,i)
-overlaps = snd . ofoldl' (flip f) (HS.empty, HS.empty)
+overlaps xs = let !r = (snd . ofoldl' (flip f) (HS.empty, HS.empty) $ xs) in r
   where
-    f (Open  p i) (is, r) = (HS.insert i is, HS.foldr (HS.insert . g i) r is)
-    f (Close p i) (is, r) = (HS.delete i is, r) -- insert/delete is ~O(1)
+    f (Open  !p !i) (!is, !r) = (HS.insert i is, HS.foldr (HS.insert . g i) r is)
+    f (Close !p !i) (!is, !r) = (HS.delete i is, r) -- insert/delete is ~O(1)
     g i j = if i < j then (i,j) else (j,i)
 
 overlaps2 :: forall p i v.
              ( Hashable i, Ord i, Ord p
              , G.Vector v (Point p i)
              ) => v (Point p i) -> v (Point p i) -> HashSet (i,i)
-overlaps2 xs ys = f 0 0 HS.empty HS.empty HS.empty
+overlaps2 !xs !ys = f 0 0 HS.empty HS.empty HS.empty
   where
-    f xi _ is _ cs | HS.null is && xi >= G.length xs = cs
-    f _ yi _ js cs | HS.null js && yi >= G.length ys = cs
-    f xi yi is js cs
+    f !xi _ !is _ !cs | HS.null is && xi >= G.length xs = cs
+    f _ !yi _ !js !cs | HS.null js && yi >= G.length ys = cs
+    f !xi !yi !is !js !cs
       | xp == yp
       , op x     = f (xi+1) yi (ins x is) js (add x js cs)
       | xp == yp
@@ -209,10 +209,10 @@ overlaps2 xs ys = f 0 0 HS.empty HS.empty HS.empty
       , op y     = f xi (yi+1) is (ins y js) (add y is cs)
       | xp >= yp = f xi (yi+1) is (del y js) cs
       where
-        xp = valP x
-        yp = valP y
-        x  = xs G.! xi
-        y  = ys G.! yi
+        !xp = valP x
+        !yp = valP y
+        !x  = xs G.! xi
+        !y  = ys G.! yi
 
     op (Open _ _) = True
     op _          = False
